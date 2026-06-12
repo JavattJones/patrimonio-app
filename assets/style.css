@@ -152,13 +152,32 @@ main { padding: 14px; max-width: 640px; margin: 0 auto; }
 }
 .seg-btn.active { background: var(--amber); color: #141204; }
 
+/* ─── banner registro pendiente ─── */
+.banner {
+  display: block; width: 100%; text-align: left;
+  background: rgba(255, 176, 0, 0.07);
+  border: 1px solid var(--amber); border-radius: var(--radius);
+  padding: 13px 15px;
+  color: var(--amber);
+  font-family: var(--mono); font-size: 11px; font-weight: 700;
+  letter-spacing: 0.1em; text-transform: uppercase;
+  cursor: pointer; -webkit-tap-highlight-color: transparent;
+  animation: pulse 2.2s ease-in-out infinite;
+}
+@keyframes pulse {
+  50% { box-shadow: 0 0 20px rgba(255, 176, 0, 0.35); background: rgba(255, 176, 0, 0.12); }
+}
+
 /* ─── lista de cuentas ─── */
 .lista-cuentas .cuenta-row {
   display: flex; justify-content: space-between; align-items: center; gap: 12px;
   padding: 11px 0; border-bottom: 1px dashed rgba(255, 176, 0, 0.16);
 }
 .lista-cuentas .cuenta-row:last-child { border-bottom: none; padding-bottom: 2px; }
-.cuenta-id { display: flex; align-items: center; gap: 11px; min-width: 0; }
+.cuenta-id { display: flex; align-items: center; gap: 11px; min-width: 0; flex: 1; }
+.cuenta-info { flex: 1; min-width: 0; }
+.share { height: 3px; background: rgba(255, 176, 0, 0.12); border-radius: 2px; margin-top: 6px; overflow: hidden; max-width: 180px; }
+.share i { display: block; height: 100%; background: var(--amber); box-shadow: 0 0 8px rgba(255, 176, 0, 0.6); }
 .avatar {
   width: 36px; height: 36px; border-radius: 4px; flex: none;
   display: flex; align-items: center; justify-content: center;

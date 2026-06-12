@@ -66,10 +66,22 @@ En **Ajustes → Cuentas**, añade cada sitio donde tienes dinero:
 
 - **Patrimonio total** del último mes registrado
 - **Ahorro del mes** = total actual − total del mes anterior
-- **Gasto estimado** = ingresos − ahorro (si registraste ingresos)
+- **Gasto estimado** = ingresos − ahorro · **Tasa de ahorro** = ahorro / ingresos
 - **Media de ahorro/mes** y **variación a 12 meses**
-- **Evolución** (línea) y **ahorro mensual** (barras ±)
+- **Objetivo de ahorro anual** con barra de progreso (se define en Ajustes)
+- **Evolución** con dos vistas: *Cuentas* (área apilada, una banda por cuenta —
+  el borde superior es el total) o *Total* (línea única)
+- **Ahorro mensual** (barras ±) y **% del patrimonio** que representa cada cuenta
 - Por cuenta de inversión: **diferencia vs. capital aportado**
+- **Aviso de registro pendiente**: si el mes en curso no está registrado, un
+  banner lo recuerda al abrir la app
+
+## Diseño
+
+Interfaz retro estilo **terminal financiera CRT**: tipografía monoespaciada,
+ámbar/verde fósforo sobre negro, scanlines y pestañas [F1]/[F2]/[F3]. Las
+cuentas se gestionan desde Ajustes: ✏️ renombrar, 📦 archivar (deja de pedirse
+pero su histórico se conserva) y ✕ eliminar.
 
 ## Copia de seguridad
 

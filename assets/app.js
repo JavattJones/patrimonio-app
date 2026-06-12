@@ -195,6 +195,16 @@ function renderResumen() {
   const meses = mesesOrdenados();
   const empty = document.getElementById("empty-state");
   const dash = document.getElementById("dash");
+
+  // aviso de registro pendiente del mes en curso
+  const banner = document.getElementById("banner-pendiente");
+  const mesActual = hoyYM();
+  if (meses.length && data.cuentas.length && !data.registros[mesActual]) {
+    document.getElementById("banner-mes").textContent = mesLargo(mesActual);
+    banner.classList.remove("hidden");
+  } else {
+    banner.classList.add("hidden");
+  }
   if (!meses.length || !data.cuentas.length) {
     empty.classList.remove("hidden");
     dash.classList.add("hidden");
@@ -344,10 +354,16 @@ function renderResumen() {
       deltaHtml = `<span class="cuenta-delta">capital aportado</span>`;
     }
     const tipoTxt = { cuenta: "cuenta", inversion: "inversión", aportaciones: "aportaciones" }[c.tipo];
+    const pct = total > 0 && v !== null && v > 0 ? (v / total) * 100 : 0;
+    const pctTxt = pct > 0 ? ` · ${pct.toFixed(0)} %` : "";
     row.innerHTML = `
       <div class="cuenta-id">
         <span class="avatar t-${c.tipo}">${esc(iniciales(c.nombre))}</span>
-        <div><span class="cuenta-nombre">${esc(c.nombre)}</span><span class="cuenta-tipo">${tipoTxt}</span></div>
+        <div class="cuenta-info">
+          <span class="cuenta-nombre">${esc(c.nombre)}</span>
+          <span class="cuenta-tipo">${tipoTxt}${pctTxt}</span>
+          <div class="share"><i style="width:${pct.toFixed(1)}%"></i></div>
+        </div>
       </div>
       <div class="cuenta-valor">${v !== null ? fmtEur(v) : "—"}${deltaHtml}</div>`;
     cont.appendChild(row);
@@ -626,6 +642,7 @@ document.getElementById("lista-cuentas-cfg").addEventListener("change", (e) => {
     saveAndSync(null);
   }
 });
+document.getElementById("banner-pendiente").addEventListener("click", () => switchView("actualizar"));
 document.getElementById("seg-cuentas").addEventListener("click", () => {
   chartMode = "cuentas";
   localStorage.setItem("pat:chartmode", chartMode);
