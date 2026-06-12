@@ -232,6 +232,10 @@ function renderResumen() {
   setKpi("kpi-anual", kpiAnual);
 
   // gráficas
+  const evoCtx = document.getElementById("chart-evolucion").getContext("2d");
+  const grad = evoCtx.createLinearGradient(0, 0, 0, 230);
+  grad.addColorStop(0, "rgba(56,189,248,0.32)");
+  grad.addColorStop(1, "rgba(56,189,248,0)");
   drawChart("chart-evolucion", {
     type: "line",
     data: {
@@ -239,8 +243,14 @@ function renderResumen() {
       datasets: [{
         data: meses.map(totalMes),
         borderColor: "#38bdf8",
-        backgroundColor: "rgba(56,189,248,0.12)",
-        fill: true, tension: 0.3, pointRadius: 3,
+        borderWidth: 2.5,
+        backgroundColor: grad,
+        fill: true, tension: 0.38,
+        pointRadius: meses.length > 14 ? 0 : 3,
+        pointBackgroundColor: "#38bdf8",
+        pointBorderColor: "rgba(7,11,20,0.9)",
+        pointBorderWidth: 2,
+        pointHoverRadius: 5,
       }],
     },
     options: chartOpts((v) => fmtEur(v)),
@@ -252,8 +262,10 @@ function renderResumen() {
       labels: meses.slice(1).map(mesLargo),
       datasets: [{
         data: deltas,
-        backgroundColor: deltas.map((d) => (d >= 0 ? "rgba(74,222,128,0.7)" : "rgba(248,113,113,0.7)")),
-        borderRadius: 4,
+        backgroundColor: deltas.map((d) => (d >= 0 ? "rgba(52,211,153,0.75)" : "rgba(251,113,133,0.75)")),
+        borderRadius: 7,
+        borderSkipped: false,
+        maxBarThickness: 34,
       }],
     },
     options: chartOpts((v) => fmtEurSign(v)),
@@ -279,7 +291,10 @@ function renderResumen() {
     }
     const tipoTxt = { cuenta: "cuenta", inversion: "inversión", aportaciones: "aportaciones" }[c.tipo];
     row.innerHTML = `
-      <div><span class="cuenta-nombre">${esc(c.nombre)}</span><span class="cuenta-tipo">${tipoTxt}</span></div>
+      <div class="cuenta-id">
+        <span class="avatar t-${c.tipo}">${esc(iniciales(c.nombre))}</span>
+        <div><span class="cuenta-nombre">${esc(c.nombre)}</span><span class="cuenta-tipo">${tipoTxt}</span></div>
+      </div>
       <div class="cuenta-valor">${v !== null ? fmtEur(v) : "—"}${deltaHtml}</div>`;
     cont.appendChild(row);
   }
@@ -301,16 +316,34 @@ function esc(s) {
   d.textContent = s;
   return d.innerHTML;
 }
+function iniciales(nombre) {
+  const partes = nombre.trim().split(/\s+/).filter((p) => /[a-zá-úñ0-9]/i.test(p[0]));
+  if (partes.length >= 2) return (partes[0][0] + partes[1][0]).toUpperCase();
+  return nombre.trim().slice(0, 2).toUpperCase();
+}
 function chartOpts(fmt) {
+  const tick = { color: "#8b97ac", font: { size: 11, weight: 600 } };
   return {
     responsive: true,
     plugins: {
       legend: { display: false },
-      tooltip: { callbacks: { label: (ctx) => fmt(ctx.parsed.y) } },
+      tooltip: {
+        backgroundColor: "rgba(13,19,33,0.95)",
+        borderColor: "rgba(255,255,255,0.1)",
+        borderWidth: 1,
+        padding: 10,
+        cornerRadius: 10,
+        displayColors: false,
+        callbacks: { label: (ctx) => fmt(ctx.parsed.y) },
+      },
     },
     scales: {
-      x: { ticks: { color: "#94a3b8" }, grid: { color: "rgba(51,65,85,0.4)" } },
-      y: { ticks: { color: "#94a3b8", callback: (v) => fmtEur(v) }, grid: { color: "rgba(51,65,85,0.4)" } },
+      x: { ticks: tick, grid: { display: false }, border: { color: "rgba(255,255,255,0.07)" } },
+      y: {
+        ticks: { ...tick, callback: (v) => fmtEur(v), maxTicksLimit: 6 },
+        grid: { color: "rgba(148,163,184,0.07)" },
+        border: { display: false },
+      },
     },
   };
 }
