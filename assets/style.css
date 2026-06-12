@@ -121,8 +121,10 @@ input:focus, select:focus { outline: none; border-color: var(--accent); }
 .cuenta-cfg .tipo { font-size: 11px; color: var(--muted); }
 .cuenta-cfg input.aportado { width: 110px; padding: 7px 8px; font-size: 14px; }
 .cuenta-cfg .btn-mini {
-  background: none; border: none; color: var(--red); font-size: 16px; cursor: pointer; padding: 4px 8px;
+  background: none; border: none; color: var(--red); font-size: 16px; cursor: pointer; padding: 4px 6px;
 }
+.cuenta-cfg .btn-mini.accion { color: var(--muted); }
+.cuenta-cfg.archivada .nombre { color: var(--muted); text-decoration: line-through; }
 
 /* ---- tab bar inferior ---- */
 .tabbar {

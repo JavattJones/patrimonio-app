@@ -263,7 +263,7 @@ function renderResumen() {
   document.getElementById("cuentas-mes").textContent = "· " + mesLargo(ultimo);
   const cont = document.getElementById("lista-cuentas");
   cont.innerHTML = "";
-  for (const c of data.cuentas) {
+  for (const c of data.cuentas.filter((x) => !x.archived)) {
     const v = valorCuenta(c, ultimo);
     const row = document.createElement("div");
     row.className = "cuenta-row";
@@ -330,10 +330,11 @@ function renderFormulario() {
 
   const cont = document.getElementById("upd-campos");
   cont.innerHTML = "";
-  if (!data.cuentas.length) {
+  const activas = data.cuentas.filter((x) => !x.archived);
+  if (!activas.length) {
     cont.innerHTML = `<p class="hint">Primero crea tus cuentas en <b>Ajustes</b>.</p>`;
   }
-  for (const c of data.cuentas) {
+  for (const c of activas) {
     const label = document.createElement("label");
     label.className = "field";
     if (c.tipo === "aportaciones") {
@@ -374,18 +375,24 @@ function renderAjustes() {
   const cont = document.getElementById("lista-cuentas-cfg");
   cont.innerHTML = "";
   if (!data.cuentas.length) cont.innerHTML = `<p class="hint">Aún no hay cuentas. Añade la primera 👇</p>`;
-  for (const c of data.cuentas) {
+  const orden = [...data.cuentas.filter((c) => !c.archived), ...data.cuentas.filter((c) => c.archived)];
+  for (const c of orden) {
     const row = document.createElement("div");
-    row.className = "cuenta-cfg";
+    row.className = "cuenta-cfg" + (c.archived ? " archivada" : "");
     const tipoTxt = { cuenta: "cuenta", inversion: "inversión", aportaciones: "aportaciones" }[c.tipo];
-    const aportadoInput = c.tipo !== "cuenta"
+    const aportadoInput = c.tipo !== "cuenta" && !c.archived
       ? `<input type="number" class="aportado" inputmode="decimal" step="0.01" data-aportado="${c.id}"
            value="${data.config.aportado?.[c.id] ?? ""}" placeholder="aportado" title="Capital aportado (base)">`
       : "";
+    const archBtn = c.archived
+      ? `<button class="btn-mini accion" data-unarchive="${c.id}" title="Reactivar cuenta">↩</button>`
+      : `<button class="btn-mini accion" data-archive="${c.id}" title="Archivar (deja de pedirse, su histórico se conserva)">📦</button>`;
     row.innerHTML = `
-      <div class="nombre">${esc(c.nombre)}<span class="tipo"> · ${tipoTxt}</span></div>
+      <div class="nombre">${esc(c.nombre)}<span class="tipo"> · ${tipoTxt}${c.archived ? " · archivada" : ""}</span></div>
       ${aportadoInput}
-      <button class="btn-mini" data-del="${c.id}" title="Eliminar cuenta">✕</button>`;
+      <button class="btn-mini accion" data-rename="${c.id}" title="Renombrar">✏️</button>
+      ${archBtn}
+      <button class="btn-mini" data-del="${c.id}" title="Eliminar definitivamente">✕</button>`;
     cont.appendChild(row);
   }
   // GitHub
@@ -408,8 +415,24 @@ function addCuenta() {
 function delCuenta(id) {
   const c = data.cuentas.find((x) => x.id === id);
   if (!c) return;
-  if (!confirm(`¿Eliminar la cuenta "${c.nombre}"? Sus datos históricos dejarán de contarse.`)) return;
+  if (!confirm(`⚠️ ¿Eliminar DEFINITIVAMENTE "${c.nombre}"?\n\nSus datos históricos dejarán de contar y los totales pasados se recalcularán.\n\nSi solo has cancelado la cuenta, usa 📦 Archivar: deja de pedirse cada mes pero su historia se conserva.`)) return;
   data.cuentas = data.cuentas.filter((x) => x.id !== id);
+  saveAndSync(null);
+}
+
+function renameCuenta(id) {
+  const c = data.cuentas.find((x) => x.id === id);
+  if (!c) return;
+  const nuevo = prompt("Nuevo nombre para la cuenta:", c.nombre);
+  if (!nuevo || !nuevo.trim() || nuevo.trim() === c.nombre) return;
+  c.nombre = nuevo.trim();
+  saveAndSync(null);
+}
+
+function archiveCuenta(id, archivar) {
+  const c = data.cuentas.find((x) => x.id === id);
+  if (!c) return;
+  c.archived = archivar;
   saveAndSync(null);
 }
 
@@ -469,7 +492,13 @@ document.getElementById("btn-guardar-mes").addEventListener("click", guardarMes)
 document.getElementById("btn-add-cuenta").addEventListener("click", addCuenta);
 document.getElementById("lista-cuentas-cfg").addEventListener("click", (e) => {
   const del = e.target.closest("[data-del]");
-  if (del) delCuenta(del.dataset.del);
+  if (del) return delCuenta(del.dataset.del);
+  const ren = e.target.closest("[data-rename]");
+  if (ren) return renameCuenta(ren.dataset.rename);
+  const arc = e.target.closest("[data-archive]");
+  if (arc) return archiveCuenta(arc.dataset.archive, true);
+  const una = e.target.closest("[data-unarchive]");
+  if (una) return archiveCuenta(una.dataset.unarchive, false);
 });
 document.getElementById("lista-cuentas-cfg").addEventListener("change", (e) => {
   const inp = e.target.closest("[data-aportado]");
