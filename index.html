@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Patrimonio</title>
+  <meta name="description" content="Control personal de patrimonio mensual">
+  <meta name="theme-color" content="#0f172a">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="icons/icon-192.png">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Patrimonio">
+  <link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">💶 Patrimonio</div>
+    <div id="sync-status" class="sync-status" title="Estado de sincronización">·</div>
+  </header>
+
+  <main id="main">
+
+    <!-- ====== VISTA: RESUMEN ====== -->
+    <section id="view-resumen" class="view">
+      <div id="empty-state" class="card hidden">
+        <h2>👋 Bienvenido</h2>
+        <p>Para empezar: ve a <b>Ajustes</b>, conecta tu repositorio de datos de GitHub y crea tus cuentas. Después registra tu primer mes en <b>Actualizar</b>.</p>
+      </div>
+
+      <div id="dash" class="hidden">
+        <div class="hero card">
+          <div class="hero-label">Patrimonio total <span id="hero-mes" class="muted"></span></div>
+          <div id="hero-total" class="hero-total">—</div>
+          <div id="hero-delta" class="hero-delta"></div>
+        </div>
+
+        <div class="kpis">
+          <div class="kpi card">
+            <div class="kpi-label">Ahorro este mes</div>
+            <div id="kpi-ahorro" class="kpi-value">—</div>
+          </div>
+          <div class="kpi card">
+            <div class="kpi-label">Gasto estimado</div>
+            <div id="kpi-gasto" class="kpi-value">—</div>
+            <div class="kpi-sub">ingresos − ahorro</div>
+          </div>
+          <div class="kpi card">
+            <div class="kpi-label">Media ahorro/mes</div>
+            <div id="kpi-media" class="kpi-value">—</div>
+            <div class="kpi-sub" id="kpi-media-sub"></div>
+          </div>
+          <div class="kpi card">
+            <div class="kpi-label">vs. hace 12 meses</div>
+            <div id="kpi-anual" class="kpi-value">—</div>
+          </div>
+        </div>
+
+        <div class="card">
+          <h3>Evolución del patrimonio</h3>
+          <canvas id="chart-evolucion" height="220"></canvas>
+        </div>
+
+        <div class="card">
+          <h3>Ahorro mensual</h3>
+          <canvas id="chart-ahorro" height="200"></canvas>
+        </div>
+
+        <div class="card">
+          <h3>Cuentas <span id="cuentas-mes" class="muted"></span></h3>
+          <div id="lista-cuentas" class="lista-cuentas"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ====== VISTA: ACTUALIZAR ====== -->
+    <section id="view-actualizar" class="view hidden">
+      <div class="card">
+        <h2>Actualizar mes</h2>
+        <label class="field">
+          <span>Mes</span>
+          <input type="month" id="upd-mes">
+        </label>
+        <div id="upd-campos"></div>
+        <label class="field">
+          <span>Ingresos del mes <small>(opcional, para estimar el gasto)</small></span>
+          <input type="number" id="upd-ingresos" inputmode="decimal" step="0.01" placeholder="p. ej. nómina">
+        </label>
+        <label class="field">
+          <span>Notas <small>(opcional)</small></span>
+          <input type="text" id="upd-notas" placeholder="algo destacable del mes…">
+        </label>
+        <button id="btn-guardar-mes" class="btn primary">💾 Guardar mes</button>
+        <p id="upd-msg" class="msg"></p>
+      </div>
+    </section>
+
+    <!-- ====== VISTA: AJUSTES ====== -->
+    <section id="view-ajustes" class="view hidden">
+      <div class="card">
+        <h2>Cuentas</h2>
+        <div id="lista-cuentas-cfg"></div>
+        <div class="add-row">
+          <input type="text" id="nueva-cuenta-nombre" placeholder="Nombre (p. ej. MindBest)">
+          <select id="nueva-cuenta-tipo">
+            <option value="cuenta">Cuenta / banco</option>
+            <option value="inversion">Inversión (saldo + aportado)</option>
+            <option value="aportaciones">Solo aportaciones (tipo IBKR)</option>
+          </select>
+          <button id="btn-add-cuenta" class="btn">＋ Añadir</button>
+        </div>
+        <p class="hint">· <b>Cuenta/banco</b>: registras el saldo cada mes.<br>
+          · <b>Inversión</b>: registras el saldo y defines lo aportado, para ver si vas en + o −.<br>
+          · <b>Solo aportaciones</b>: cuenta por lo que metes (sin valorar el mercado), p. ej. IBKR.</p>
+      </div>
+
+      <div class="card">
+        <h2>Sincronización (GitHub)</h2>
+        <label class="field"><span>Usuario / organización</span><input type="text" id="gh-owner" placeholder="JavattJones"></label>
+        <label class="field"><span>Repositorio privado de datos</span><input type="text" id="gh-repo" placeholder="patrimonio-data"></label>
+        <label class="field"><span>Token (fine-grained, solo ese repo)</span><input type="password" id="gh-token" placeholder="github_pat_…"></label>
+        <div class="btn-row">
+          <button id="btn-gh-guardar" class="btn primary">Guardar y probar</button>
+          <button id="btn-gh-sync" class="btn">⟳ Sincronizar ahora</button>
+        </div>
+        <p id="gh-msg" class="msg"></p>
+        <p class="hint">El token se guarda solo en este dispositivo. Los datos viajan cifrados (HTTPS) directamente entre tu dispositivo y GitHub.</p>
+      </div>
+
+      <div class="card">
+        <h2>Copia de seguridad</h2>
+        <div class="btn-row">
+          <button id="btn-export" class="btn">⬇ Exportar JSON</button>
+          <button id="btn-import" class="btn">⬆ Importar JSON</button>
+          <input type="file" id="import-file" accept="application/json" class="hidden">
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <nav class="tabbar">
+    <button data-view="resumen" class="tab active">📊<span>Resumen</span></button>
+    <button data-view="actualizar" class="tab">✏️<span>Actualizar</span></button>
+    <button data-view="ajustes" class="tab">⚙️<span>Ajustes</span></button>
+  </nav>
+
+  <script src="assets/chart.umd.min.js"></script>
+  <script src="assets/app.js"></script>
+</body>
+</html>

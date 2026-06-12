@@ -1,0 +1,147 @@
+:root {
+  --bg: #0f172a;
+  --card: #1e293b;
+  --card2: #283548;
+  --text: #e2e8f0;
+  --muted: #94a3b8;
+  --accent: #38bdf8;
+  --green: #4ade80;
+  --red: #f87171;
+  --border: #334155;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+html { -webkit-text-size-adjust: 100%; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  min-height: 100vh;
+  padding-bottom: calc(70px + env(safe-area-inset-bottom));
+}
+
+.hidden { display: none !important; }
+.muted { color: var(--muted); font-weight: 400; font-size: 0.85em; }
+
+/* ---- barra superior ---- */
+.topbar {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: calc(10px + env(safe-area-inset-top)) 16px 10px;
+  position: sticky; top: 0; background: rgba(15, 23, 42, 0.92);
+  backdrop-filter: blur(8px); z-index: 10;
+  border-bottom: 1px solid var(--border);
+}
+.brand { font-weight: 700; font-size: 17px; }
+.sync-status { font-size: 13px; color: var(--muted); }
+.sync-status.ok { color: var(--green); }
+.sync-status.err { color: var(--red); }
+
+/* ---- layout ---- */
+main { padding: 14px; max-width: 640px; margin: 0 auto; }
+.view > * + * { margin-top: 12px; }
+
+.card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 16px;
+}
+.card h2 { font-size: 17px; margin-bottom: 12px; }
+.card h3 { font-size: 15px; margin-bottom: 10px; color: var(--muted); font-weight: 600; }
+.card p { font-size: 14px; line-height: 1.5; color: var(--muted); }
+
+/* ---- hero ---- */
+.hero { text-align: center; padding: 22px 16px; }
+.hero-label { font-size: 13px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; }
+.hero-total { font-size: 40px; font-weight: 800; margin: 6px 0 2px; font-variant-numeric: tabular-nums; }
+.hero-delta { font-size: 15px; font-weight: 600; }
+.hero-delta.pos { color: var(--green); }
+.hero-delta.neg { color: var(--red); }
+
+/* ---- KPIs ---- */
+.kpis { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.kpi { padding: 12px 14px; }
+.kpi-label { font-size: 12px; color: var(--muted); }
+.kpi-value { font-size: 20px; font-weight: 700; margin-top: 4px; font-variant-numeric: tabular-nums; }
+.kpi-value.pos { color: var(--green); }
+.kpi-value.neg { color: var(--red); }
+.kpi-sub { font-size: 11px; color: var(--muted); margin-top: 2px; }
+
+/* ---- lista de cuentas ---- */
+.lista-cuentas .cuenta-row {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 10px 0; border-bottom: 1px solid var(--border);
+}
+.lista-cuentas .cuenta-row:last-child { border-bottom: none; }
+.cuenta-nombre { font-size: 15px; }
+.cuenta-tipo { font-size: 11px; color: var(--muted); display: block; }
+.cuenta-valor { text-align: right; font-weight: 600; font-variant-numeric: tabular-nums; }
+.cuenta-delta { font-size: 12px; display: block; font-weight: 500; }
+.cuenta-delta.pos { color: var(--green); }
+.cuenta-delta.neg { color: var(--red); }
+
+/* ---- formularios ---- */
+.field { display: block; margin-bottom: 12px; }
+.field span { display: block; font-size: 13px; color: var(--muted); margin-bottom: 5px; }
+.field small { font-size: 11px; }
+input, select {
+  width: 100%; padding: 11px 12px;
+  background: var(--card2); color: var(--text);
+  border: 1px solid var(--border); border-radius: 10px;
+  font-size: 16px; /* evita zoom de iOS al enfocar */
+}
+input:focus, select:focus { outline: none; border-color: var(--accent); }
+
+.btn {
+  padding: 11px 16px; border-radius: 10px; border: 1px solid var(--border);
+  background: var(--card2); color: var(--text); font-size: 15px; font-weight: 600;
+  cursor: pointer; -webkit-tap-highlight-color: transparent;
+}
+.btn.primary { background: var(--accent); border-color: var(--accent); color: #082f49; width: 100%; }
+.btn:active { opacity: 0.8; }
+.btn-row { display: flex; gap: 10px; flex-wrap: wrap; }
+.btn-row .btn { flex: 1; }
+
+.add-row { display: grid; grid-template-columns: 1fr; gap: 8px; margin-top: 10px; }
+.hint { font-size: 12px; color: var(--muted); margin-top: 10px; line-height: 1.6; }
+
+.msg { font-size: 13px; margin-top: 10px; min-height: 18px; }
+.msg.ok { color: var(--green); }
+.msg.err { color: var(--red); }
+
+/* ---- config de cuentas ---- */
+.cuenta-cfg {
+  display: flex; align-items: center; gap: 8px;
+  padding: 8px 0; border-bottom: 1px solid var(--border);
+}
+.cuenta-cfg:last-child { border-bottom: none; }
+.cuenta-cfg .nombre { flex: 1; font-size: 15px; }
+.cuenta-cfg .tipo { font-size: 11px; color: var(--muted); }
+.cuenta-cfg input.aportado { width: 110px; padding: 7px 8px; font-size: 14px; }
+.cuenta-cfg .btn-mini {
+  background: none; border: none; color: var(--red); font-size: 16px; cursor: pointer; padding: 4px 8px;
+}
+
+/* ---- tab bar inferior ---- */
+.tabbar {
+  position: fixed; bottom: 0; left: 0; right: 0;
+  display: flex; justify-content: space-around;
+  background: rgba(15, 23, 42, 0.95); backdrop-filter: blur(8px);
+  border-top: 1px solid var(--border);
+  padding: 8px 0 calc(8px + env(safe-area-inset-bottom));
+  z-index: 10;
+}
+.tab {
+  background: none; border: none; color: var(--muted);
+  font-size: 20px; display: flex; flex-direction: column; align-items: center; gap: 2px;
+  cursor: pointer; -webkit-tap-highlight-color: transparent; padding: 2px 18px;
+}
+.tab span { font-size: 11px; font-weight: 600; }
+.tab.active { color: var(--accent); }
+
+@media (min-width: 560px) {
+  .add-row { grid-template-columns: 1fr auto auto; }
+  .kpis { grid-template-columns: repeat(4, 1fr); }
+}
