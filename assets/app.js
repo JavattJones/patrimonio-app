@@ -481,7 +481,8 @@ function renderFormulario() {
     }
     cont.appendChild(label);
   }
-  document.getElementById("upd-ingresos").value = reg.ingresos ?? "";
+  // ingresos: precarga el del mes anterior (suele ser el mismo sueldo); solo se toca si cambia
+  document.getElementById("upd-ingresos").value = reg.ingresos ?? prevReg?.ingresos ?? "";
   document.getElementById("upd-notas").value = reg.notas ?? "";
 }
 
