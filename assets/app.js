@@ -14,6 +14,10 @@ let data = loadLocal();
 let gh = JSON.parse(localStorage.getItem(LS_GH) || "null");
 let remoteSha = localStorage.getItem(LS_SHA) || null;
 let charts = {};
+let chartMode = localStorage.getItem("pat:chartmode") || "cuentas";
+
+// paleta fósforo para las bandas por cuenta
+const PALETTE = ["#ffb000", "#3df98b", "#25e0ff", "#ffe14d", "#ff7a1a", "#b3ff66", "#ff66b3", "#7aa2ff"];
 
 function emptyData() {
   return { version: 1, updatedAt: null, cuentas: [], registros: {}, config: { aportado: {} } };
@@ -221,6 +225,16 @@ function renderResumen() {
   const gasto = ahorro !== null && ingresos ? Number(ingresos) - ahorro : null;
   document.getElementById("kpi-gasto").textContent = gasto !== null ? fmtEur(gasto) : "—";
 
+  const tasaEl = document.getElementById("kpi-tasa");
+  if (ahorro !== null && ingresos && Number(ingresos) > 0) {
+    const tasa = (ahorro / Number(ingresos)) * 100;
+    tasaEl.textContent = (tasa >= 0 ? "+" : "") + tasa.toFixed(0) + " %";
+    tasaEl.className = "kpi-value " + (tasa >= 0 ? "pos" : "neg");
+  } else {
+    tasaEl.textContent = "—";
+    tasaEl.className = "kpi-value";
+  }
+
   const deltas = [];
   for (let i = 1; i < meses.length; i++) deltas.push(totalMes(meses[i]) - totalMes(meses[i - 1]));
   const media = deltas.length ? deltas.reduce((a, b) => a + b, 0) / deltas.length : null;
@@ -231,30 +245,69 @@ function renderResumen() {
   const kpiAnual = hace12 && hace12 !== ultimo ? total - totalMes(hace12) : null;
   setKpi("kpi-anual", kpiAnual);
 
-  // gráficas
-  const evoCtx = document.getElementById("chart-evolucion").getContext("2d");
-  const grad = evoCtx.createLinearGradient(0, 0, 0, 230);
-  grad.addColorStop(0, "rgba(56,189,248,0.32)");
-  grad.addColorStop(1, "rgba(56,189,248,0)");
-  drawChart("chart-evolucion", {
-    type: "line",
-    data: {
-      labels: meses.map(mesLargo),
-      datasets: [{
-        data: meses.map(totalMes),
-        borderColor: "#38bdf8",
-        borderWidth: 2.5,
-        backgroundColor: grad,
-        fill: true, tension: 0.38,
-        pointRadius: meses.length > 14 ? 0 : 3,
-        pointBackgroundColor: "#38bdf8",
-        pointBorderColor: "rgba(7,11,20,0.9)",
-        pointBorderWidth: 2,
-        pointHoverRadius: 5,
-      }],
-    },
-    options: chartOpts((v) => fmtEur(v)),
-  });
+  // objetivo anual
+  renderObjetivo(meses);
+
+  // gráfica de evolución: apilada por cuenta o línea de total
+  document.getElementById("seg-cuentas").classList.toggle("active", chartMode === "cuentas");
+  document.getElementById("seg-total").classList.toggle("active", chartMode === "total");
+
+  if (chartMode === "cuentas") {
+    // una banda por cuenta; el borde superior de la pila = patrimonio total
+    const conDatos = data.cuentas.filter((c) => meses.some((m) => valorCuenta(c, m) !== null));
+    const datasets = conDatos.map((c, i) => {
+      const col = PALETTE[i % PALETTE.length];
+      return {
+        label: c.nombre,
+        data: meses.map((m) => valorCuenta(c, m) ?? 0),
+        borderColor: col,
+        borderWidth: 1.5,
+        backgroundColor: col + "3d",
+        fill: true,
+        tension: 0.3,
+        pointRadius: 0,
+        pointHoverRadius: 4,
+        pointBackgroundColor: col,
+      };
+    });
+    const opts = chartOpts((v) => fmtEur(v));
+    opts.scales.y.stacked = true;
+    opts.plugins.legend = {
+      display: true,
+      position: "bottom",
+      labels: { color: "#9a8d5e", boxWidth: 10, boxHeight: 10, font: { family: MONO, size: 10 }, padding: 12 },
+    };
+    opts.plugins.tooltip.callbacks = {
+      label: (ctx) => ` ${ctx.dataset.label}: ${fmtEur(ctx.parsed.y)}`,
+      footer: (items) => "TOTAL: " + fmtEur(items.reduce((a, it) => a + it.parsed.y, 0)),
+    };
+    opts.interaction = { mode: "index", intersect: false };
+    drawChart("chart-evolucion", { type: "line", data: { labels: meses.map(mesLargo), datasets }, options: opts });
+  } else {
+    const evoCtx = document.getElementById("chart-evolucion").getContext("2d");
+    const grad = evoCtx.createLinearGradient(0, 0, 0, 240);
+    grad.addColorStop(0, "rgba(255,176,0,0.30)");
+    grad.addColorStop(1, "rgba(255,176,0,0)");
+    drawChart("chart-evolucion", {
+      type: "line",
+      data: {
+        labels: meses.map(mesLargo),
+        datasets: [{
+          data: meses.map(totalMes),
+          borderColor: "#ffb000",
+          borderWidth: 2,
+          backgroundColor: grad,
+          fill: true, tension: 0.35,
+          pointRadius: meses.length > 14 ? 0 : 3,
+          pointBackgroundColor: "#ffb000",
+          pointBorderColor: "rgba(7,7,3,0.9)",
+          pointBorderWidth: 2,
+          pointHoverRadius: 5,
+        }],
+      },
+      options: chartOpts((v) => fmtEur(v)),
+    });
+  }
 
   drawChart("chart-ahorro", {
     type: "bar",
@@ -262,10 +315,11 @@ function renderResumen() {
       labels: meses.slice(1).map(mesLargo),
       datasets: [{
         data: deltas,
-        backgroundColor: deltas.map((d) => (d >= 0 ? "rgba(52,211,153,0.75)" : "rgba(251,113,133,0.75)")),
-        borderRadius: 7,
-        borderSkipped: false,
-        maxBarThickness: 34,
+        backgroundColor: deltas.map((d) => (d >= 0 ? "rgba(61,249,139,0.7)" : "rgba(255,95,95,0.7)")),
+        borderColor: deltas.map((d) => (d >= 0 ? "#3df98b" : "#ff5f5f")),
+        borderWidth: 1,
+        borderRadius: 2,
+        maxBarThickness: 32,
       }],
     },
     options: chartOpts((v) => fmtEurSign(v)),
@@ -300,6 +354,27 @@ function renderResumen() {
   }
 }
 
+function renderObjetivo(meses) {
+  const card = document.getElementById("card-objetivo");
+  const objetivo = Number(data.config.objetivoAnual || 0);
+  if (!objetivo || meses.length < 2) { card.classList.add("hidden"); return; }
+  const año = meses[meses.length - 1].slice(0, 4);
+  // ahorro acumulado del año = suma de deltas de los meses del año en curso
+  let acumulado = 0;
+  for (let i = 1; i < meses.length; i++) {
+    if (meses[i].startsWith(año)) acumulado += totalMes(meses[i]) - totalMes(meses[i - 1]);
+  }
+  card.classList.remove("hidden");
+  document.getElementById("obj-year").textContent = "· " + año;
+  const pct = Math.max(0, (acumulado / objetivo) * 100);
+  const fill = document.getElementById("obj-fill");
+  fill.style.width = Math.min(100, pct) + "%";
+  fill.classList.toggle("over", pct >= 100);
+  document.getElementById("obj-txt").innerHTML =
+    `<b>${fmtEur(acumulado)}</b> de ${fmtEur(objetivo)} · ${pct.toFixed(0)} %` +
+    (pct >= 100 ? " · 🏆 objetivo cumplido" : "");
+}
+
 function setKpi(id, val) {
   const el = document.getElementById(id);
   if (val === null) { el.textContent = "—"; el.className = "kpi-value"; return; }
@@ -321,27 +396,35 @@ function iniciales(nombre) {
   if (partes.length >= 2) return (partes[0][0] + partes[1][0]).toUpperCase();
   return nombre.trim().slice(0, 2).toUpperCase();
 }
+const MONO = 'ui-monospace, "Cascadia Mono", "SF Mono", Menlo, Consolas, monospace';
+
 function chartOpts(fmt) {
-  const tick = { color: "#8b97ac", font: { size: 11, weight: 600 } };
+  const tick = { color: "#9a8d5e", font: { family: MONO, size: 10, weight: 700 } };
   return {
     responsive: true,
     plugins: {
       legend: { display: false },
       tooltip: {
-        backgroundColor: "rgba(13,19,33,0.95)",
-        borderColor: "rgba(255,255,255,0.1)",
+        backgroundColor: "rgba(7,7,3,0.96)",
+        borderColor: "rgba(255,176,0,0.35)",
         borderWidth: 1,
         padding: 10,
-        cornerRadius: 10,
+        cornerRadius: 4,
         displayColors: false,
+        titleColor: "#ffb000",
+        bodyColor: "#e9ddb9",
+        footerColor: "#ffb000",
+        titleFont: { family: MONO, size: 11 },
+        bodyFont: { family: MONO, size: 11 },
+        footerFont: { family: MONO, size: 11, weight: 700 },
         callbacks: { label: (ctx) => fmt(ctx.parsed.y) },
       },
     },
     scales: {
-      x: { ticks: tick, grid: { display: false }, border: { color: "rgba(255,255,255,0.07)" } },
+      x: { ticks: tick, grid: { display: false }, border: { color: "rgba(255,176,0,0.18)" } },
       y: {
         ticks: { ...tick, callback: (v) => fmtEur(v), maxTicksLimit: 6 },
-        grid: { color: "rgba(148,163,184,0.07)" },
+        grid: { color: "rgba(255,176,0,0.07)" },
         border: { display: false },
       },
     },
@@ -428,6 +511,8 @@ function renderAjustes() {
       <button class="btn-mini" data-del="${c.id}" title="Eliminar definitivamente">✕</button>`;
     cont.appendChild(row);
   }
+  // objetivo anual
+  document.getElementById("cfg-objetivo").value = data.config.objetivoAnual ?? "";
   // GitHub
   if (gh) {
     document.getElementById("gh-owner").value = gh.owner || "";
@@ -540,6 +625,20 @@ document.getElementById("lista-cuentas-cfg").addEventListener("change", (e) => {
     data.config.aportado[inp.dataset.aportado] = inp.value === "" ? 0 : Number(inp.value);
     saveAndSync(null);
   }
+});
+document.getElementById("seg-cuentas").addEventListener("click", () => {
+  chartMode = "cuentas";
+  localStorage.setItem("pat:chartmode", chartMode);
+  renderResumen();
+});
+document.getElementById("seg-total").addEventListener("click", () => {
+  chartMode = "total";
+  localStorage.setItem("pat:chartmode", chartMode);
+  renderResumen();
+});
+document.getElementById("cfg-objetivo").addEventListener("change", (e) => {
+  data.config.objetivoAnual = e.target.value === "" ? 0 : Number(e.target.value);
+  saveAndSync(null);
 });
 document.getElementById("btn-gh-guardar").addEventListener("click", guardarGitHub);
 document.getElementById("btn-gh-sync").addEventListener("click", () => syncFull(true));

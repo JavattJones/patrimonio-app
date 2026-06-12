@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>Patrimonio</title>
   <meta name="description" content="Control personal de patrimonio mensual">
-  <meta name="theme-color" content="#070b14">
+  <meta name="theme-color" content="#070703">
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="icon" href="icons/icon-192.png">
   <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
@@ -16,7 +16,7 @@
 </head>
 <body>
   <header class="topbar">
-    <div class="brand">💶 Patrimonio</div>
+    <div class="brand">Patrimonio_OS<span class="cursor">▌</span></div>
     <div id="sync-status" class="sync-status" title="Estado de sincronización">·</div>
   </header>
 
@@ -47,6 +47,11 @@
             <div class="kpi-sub">ingresos − ahorro</div>
           </div>
           <div class="kpi card">
+            <div class="kpi-label">Tasa de ahorro</div>
+            <div id="kpi-tasa" class="kpi-value">—</div>
+            <div class="kpi-sub">ahorro / ingresos</div>
+          </div>
+          <div class="kpi card">
             <div class="kpi-label">Media ahorro/mes</div>
             <div id="kpi-media" class="kpi-value">—</div>
             <div class="kpi-sub" id="kpi-media-sub"></div>
@@ -57,9 +62,21 @@
           </div>
         </div>
 
+        <div id="card-objetivo" class="card hidden">
+          <h3>Objetivo de ahorro <span id="obj-year" class="muted"></span></h3>
+          <div class="obj-bar"><div id="obj-fill"></div></div>
+          <div id="obj-txt" class="obj-txt"></div>
+        </div>
+
         <div class="card">
-          <h3>Evolución del patrimonio</h3>
-          <canvas id="chart-evolucion" height="220"></canvas>
+          <div class="chart-head">
+            <h3>Evolución del patrimonio</h3>
+            <div class="seg">
+              <button id="seg-cuentas" class="seg-btn active">Cuentas</button>
+              <button id="seg-total" class="seg-btn">Total</button>
+            </div>
+          </div>
+          <canvas id="chart-evolucion" height="240"></canvas>
         </div>
 
         <div class="card">
@@ -117,6 +134,15 @@
       </div>
 
       <div class="card">
+        <h2>Objetivo</h2>
+        <label class="field">
+          <span>Objetivo de ahorro anual (€)</span>
+          <input type="number" id="cfg-objetivo" inputmode="decimal" step="100" placeholder="p. ej. 5000">
+        </label>
+        <p class="hint">Si lo defines, el Resumen mostrará una barra con tu progreso de ahorro del año en curso.</p>
+      </div>
+
+      <div class="card">
         <h2>Sincronización (GitHub)</h2>
         <label class="field"><span>Usuario / organización</span><input type="text" id="gh-owner" placeholder="JavattJones"></label>
         <label class="field"><span>Repositorio privado de datos</span><input type="text" id="gh-repo" placeholder="patrimonio-data"></label>
@@ -141,9 +167,9 @@
   </main>
 
   <nav class="tabbar">
-    <button data-view="resumen" class="tab active">📊<span>Resumen</span></button>
-    <button data-view="actualizar" class="tab">✏️<span>Actualizar</span></button>
-    <button data-view="ajustes" class="tab">⚙️<span>Ajustes</span></button>
+    <button data-view="resumen" class="tab active">[F1]<span>Resumen</span></button>
+    <button data-view="actualizar" class="tab">[F2]<span>Actualizar</span></button>
+    <button data-view="ajustes" class="tab">[F3]<span>Ajustes</span></button>
   </nav>
 
   <script src="assets/chart.umd.min.js"></script>
