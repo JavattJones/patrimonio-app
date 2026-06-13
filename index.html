@@ -25,6 +25,7 @@
     <!-- ====== VISTA: RESUMEN ====== -->
     <section id="view-resumen" class="view">
       <button id="banner-pendiente" class="banner hidden">⚠ Registro pendiente · <span id="banner-mes"></span> — pulsa para actualizar</button>
+      <button id="banner-liberar" class="banner cash hidden">💰 <span id="banner-liberar-txt"></span> — pulsa para liberar</button>
 
       <div id="empty-state" class="card hidden">
         <h2>👋 Bienvenido</h2>
@@ -126,12 +127,14 @@
             <option value="cuenta">Cuenta / banco</option>
             <option value="inversion">Inversión (saldo + aportado)</option>
             <option value="aportaciones">Solo aportaciones (tipo IBKR)</option>
+            <option value="bloqueada">Acciones bloqueadas (paquetes con vesting)</option>
           </select>
           <button id="btn-add-cuenta" class="btn">＋ Añadir</button>
         </div>
         <p class="hint">· <b>Cuenta/banco</b>: registras el saldo cada mes.<br>
           · <b>Inversión</b>: registras el saldo y defines lo aportado, para ver si vas en + o −.<br>
           · <b>Solo aportaciones</b>: cuenta por lo que metes (sin valorar el mercado), p. ej. IBKR.<br>
+          · <b>Acciones bloqueadas</b>: paquetes de acciones de empresa que se compran una vez al año y se congelan ~3 años; al vencer, los liberas y pasan a dinero real en otra cuenta. Se gestiona por paquetes (no pides saldo cada mes).<br>
           · ✏️ renombrar · 📦 archivar (si cancelas una cuenta: deja de pedirse, su histórico se conserva) · ✕ eliminar del todo.</p>
       </div>
 

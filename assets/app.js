@@ -15,6 +15,7 @@ let gh = JSON.parse(localStorage.getItem(LS_GH) || "null");
 let remoteSha = localStorage.getItem(LS_SHA) || null;
 let charts = {};
 let chartMode = localStorage.getItem("pat:chartmode") || "cuentas";
+let liberandoLote = null; // id del lote que se está liberando (UI de Ajustes)
 
 // paleta fósforo para las bandas por cuenta
 const PALETTE = ["#ffb000", "#3df98b", "#25e0ff", "#ffe14d", "#ff7a1a", "#b3ff66", "#ff66b3", "#7aa2ff"];
@@ -65,12 +66,41 @@ function aportAcumulada(cuentaId, hastaMes) {
   }
   return total;
 }
+// ── acciones bloqueadas (lotes / vesting) ──
+// Un lote cuenta (a coste = aportado) desde su mes de compra hasta que se libera.
+// Al liberarse, su valor sale de aquí y entra como dinero real en la cuenta destino.
+function loteVivoEn(lote, mes) {
+  if (!lote.mesCompra || lote.mesCompra > mes) return false; // aún no comprado
+  if (lote.liberado && lote.mesLiberado && lote.mesLiberado <= mes) return false; // ya liberado
+  return true;
+}
+function valorBloqueada(cuenta, mes) {
+  let total = 0;
+  for (const lote of cuenta.lotes || []) if (loteVivoEn(lote, mes)) total += Number(lote.aportado || 0);
+  return total;
+}
 function valorCuenta(cuenta, mes) {
   const reg = data.registros[mes];
   if (!reg) return null;
   if (cuenta.tipo === "aportaciones") return aportAcumulada(cuenta.id, mes);
+  if (cuenta.tipo === "bloqueada") {
+    const v = valorBloqueada(cuenta, mes);
+    return v > 0 ? v : null;
+  }
   const s = reg.saldos?.[cuenta.id];
   return s === undefined || s === null || s === "" ? null : Number(s);
+}
+// lotes vencidos (fecha de liberación alcanzada) y aún sin liberar
+function lotesPorLiberar() {
+  const hoy = hoyYM();
+  const res = [];
+  for (const c of data.cuentas) {
+    if (c.tipo !== "bloqueada" || c.archived) continue;
+    for (const lote of c.lotes || []) {
+      if (!lote.liberado && lote.mesLiberacion && lote.mesLiberacion <= hoy) res.push({ cuenta: c, lote });
+    }
+  }
+  return res;
 }
 function totalMes(mes) {
   let total = 0;
@@ -205,6 +235,20 @@ function renderResumen() {
   } else {
     banner.classList.add("hidden");
   }
+
+  // aviso de paquete(s) de acciones listos para liberar
+  const bannerLib = document.getElementById("banner-liberar");
+  const porLiberar = lotesPorLiberar();
+  if (porLiberar.length) {
+    const { cuenta, lote } = porLiberar[0];
+    document.getElementById("banner-liberar-txt").textContent =
+      `${cuenta.nombre}: paquete de ${fmtEur(lote.aportado)} liberable (venció ${mesLargo(lote.mesLiberacion)})` +
+      (porLiberar.length > 1 ? ` · +${porLiberar.length - 1} más` : "");
+    bannerLib.classList.remove("hidden");
+  } else {
+    bannerLib.classList.add("hidden");
+  }
+
   if (!meses.length || !data.cuentas.length) {
     empty.classList.remove("hidden");
     dash.classList.add("hidden");
@@ -352,8 +396,13 @@ function renderResumen() {
       }
     } else if (c.tipo === "aportaciones") {
       deltaHtml = `<span class="cuenta-delta">capital aportado</span>`;
+    } else if (c.tipo === "bloqueada") {
+      const vivos = (c.lotes || []).filter((l) => !l.liberado);
+      const prox = vivos.map((l) => l.mesLiberacion).filter(Boolean).sort()[0];
+      const n = vivos.length;
+      deltaHtml = `<span class="cuenta-delta">${n} paquete${n === 1 ? "" : "s"}${prox ? ` · próx. ${mesLargo(prox)}` : ""}</span>`;
     }
-    const tipoTxt = { cuenta: "cuenta", inversion: "inversión", aportaciones: "aportaciones" }[c.tipo];
+    const tipoTxt = { cuenta: "cuenta", inversion: "inversión", aportaciones: "aportaciones", bloqueada: "acciones" }[c.tipo];
     const pct = total > 0 && v !== null && v > 0 ? (v / total) * 100 : 0;
     const pctTxt = pct > 0 ? ` · ${pct.toFixed(0)} %` : "";
     row.innerHTML = `
@@ -400,6 +449,11 @@ function setKpi(id, val) {
 function restarMeses(ym, n) {
   const [y, m] = ym.split("-").map(Number);
   const d = new Date(y, m - 1 - n, 1);
+  return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0");
+}
+function sumarMeses(ym, n) {
+  const [y, m] = ym.split("-").map(Number);
+  const d = new Date(y, m - 1 + n, 1);
   return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0");
 }
 function esc(s) {
@@ -473,6 +527,10 @@ function renderFormulario() {
       const val = reg.aportaciones?.[c.id] ?? "";
       label.innerHTML = `<span>${esc(c.nombre)} — aportado <b>este mes</b></span>
         <input type="number" inputmode="decimal" step="0.01" data-aport="${c.id}" value="${val}" placeholder="0">`;
+    } else if (c.tipo === "bloqueada") {
+      const v = valorBloqueada(c, mes);
+      label.innerHTML = `<span>${esc(c.nombre)} — acciones bloqueadas <small>(automático · se gestiona en Ajustes)</small></span>
+        <input type="text" value="${v > 0 ? fmtEur(v) : "sin paquetes activos"}" disabled>`;
     } else {
       const val = reg.saldos?.[c.id] ?? "";
       const prev = prevReg?.saldos?.[c.id];
@@ -512,8 +570,8 @@ function renderAjustes() {
   for (const c of orden) {
     const row = document.createElement("div");
     row.className = "cuenta-cfg" + (c.archived ? " archivada" : "");
-    const tipoTxt = { cuenta: "cuenta", inversion: "inversión", aportaciones: "aportaciones" }[c.tipo];
-    const aportadoInput = c.tipo !== "cuenta" && !c.archived
+    const tipoTxt = { cuenta: "cuenta", inversion: "inversión", aportaciones: "aportaciones", bloqueada: "acciones" }[c.tipo];
+    const aportadoInput = (c.tipo === "inversion" || c.tipo === "aportaciones") && !c.archived
       ? `<input type="number" class="aportado" inputmode="decimal" step="0.01" data-aportado="${c.id}"
            value="${data.config.aportado?.[c.id] ?? ""}" placeholder="aportado" title="Capital aportado (base)">`
       : "";
@@ -527,6 +585,11 @@ function renderAjustes() {
       ${archBtn}
       <button class="btn-mini" data-del="${c.id}" title="Eliminar definitivamente">✕</button>`;
     cont.appendChild(row);
+    if (c.tipo === "bloqueada" && !c.archived) {
+      const wrap = document.createElement("div");
+      wrap.innerHTML = lotePanelHTML(c);
+      cont.appendChild(wrap.firstElementChild);
+    }
   }
   // objetivo anual
   document.getElementById("cfg-objetivo").value = data.config.objetivoAnual ?? "";
@@ -542,7 +605,9 @@ function addCuenta() {
   const nombre = document.getElementById("nueva-cuenta-nombre").value.trim();
   const tipo = document.getElementById("nueva-cuenta-tipo").value;
   if (!nombre) return;
-  data.cuentas.push({ id: uid(), nombre, tipo });
+  const cuenta = { id: uid(), nombre, tipo };
+  if (tipo === "bloqueada") cuenta.lotes = [];
+  data.cuentas.push(cuenta);
   document.getElementById("nueva-cuenta-nombre").value = "";
   saveAndSync(null);
 }
@@ -569,6 +634,102 @@ function archiveCuenta(id, archivar) {
   if (!c) return;
   c.archived = archivar;
   saveAndSync(null);
+}
+
+// ---------- acciones bloqueadas: panel de lotes ----------
+function lotePanelHTML(c) {
+  const lotes = (c.lotes || []).slice().sort((a, b) => (a.mesCompra || "").localeCompare(b.mesCompra || ""));
+  let rows = "";
+  if (!lotes.length) rows = `<p class="hint">Sin paquetes todavía. Añade el primero 👇</p>`;
+  for (const l of lotes) {
+    if (liberandoLote === l.id) { rows += formLiberarHTML(c, l); continue; }
+    let estado;
+    if (l.liberado) {
+      estado = `<span class="lote-estado liberado">✓ liberado ${mesLargo(l.mesLiberado)} · ${fmtEur(l.valorLiberacion)} (${fmtEurSign(l.valorLiberacion - l.aportado)})</span>`;
+    } else if (l.mesLiberacion && l.mesLiberacion <= hoyYM()) {
+      estado = `<span class="lote-estado vence">⚠ liberable · venció ${mesLargo(l.mesLiberacion)}</span>`;
+    } else {
+      estado = `<span class="lote-estado">🔒 se libera ${l.mesLiberacion ? mesLargo(l.mesLiberacion) : "—"}</span>`;
+    }
+    rows += `<div class="lote">
+      <div class="lote-info"><b>${esc((l.mesCompra || "").slice(0, 4))}</b> · ${fmtEur(l.aportado)}${estado}</div>
+      ${l.liberado ? "" : `<button class="btn-mini accion" data-liberar="${l.id}|${c.id}" title="Liberar (pasar a dinero real)">💰</button>`}
+      <button class="btn-mini" data-dellote="${l.id}|${c.id}" title="Eliminar paquete">✕</button>
+    </div>`;
+  }
+  rows += `<div class="add-lote">
+    <input type="month" data-newlote-mes="${c.id}" title="Mes de compra del paquete">
+    <input type="number" inputmode="decimal" step="0.01" data-newlote-imp="${c.id}" placeholder="importe €">
+    <button class="btn-mini add" data-addlote="${c.id}">＋ paquete</button>
+  </div>`;
+  return `<div class="lotes-panel">${rows}</div>`;
+}
+
+function formLiberarHTML(c, l) {
+  const destinos = data.cuentas.filter((x) => !x.archived && (x.tipo === "cuenta" || x.tipo === "inversion"));
+  const opts = destinos.map((d) => `<option value="${d.id}">${esc(d.nombre)}</option>`).join("");
+  return `<div class="lote-liberar">
+    <div class="lote-info"><b>Liberar paquete ${esc((l.mesCompra || "").slice(0, 4))}</b> · aportado ${fmtEur(l.aportado)}</div>
+    <label class="mini-field"><span>Valor real recibido (€)</span>
+      <input type="number" inputmode="decimal" step="0.01" data-lib-valor="${l.id}" placeholder="${l.aportado}"></label>
+    <label class="mini-field"><span>Mes de liberación</span>
+      <input type="month" data-lib-mes="${l.id}" value="${hoyYM()}"></label>
+    <label class="mini-field"><span>Dinero ingresado en</span>
+      <select data-lib-destino="${l.id}">${opts || `<option value="">(ninguna cuenta destino)</option>`}</select></label>
+    <div class="btn-row">
+      <button class="btn-mini ok" data-libok="${l.id}|${c.id}">✓ Confirmar</button>
+      <button class="btn-mini accion" data-libcancel="1">cancelar</button>
+    </div>
+  </div>`;
+}
+
+function addLote(cid) {
+  const c = data.cuentas.find((x) => x.id === cid);
+  if (!c) return;
+  const mesCompra = document.querySelector(`[data-newlote-mes="${cid}"]`)?.value;
+  const imp = Number(document.querySelector(`[data-newlote-imp="${cid}"]`)?.value);
+  if (!mesCompra || !imp) { alert("Indica el mes de compra y el importe del paquete."); return; }
+  c.lotes = c.lotes || [];
+  c.lotes.push({
+    id: uid(), mesCompra, aportado: imp, mesLiberacion: sumarMeses(mesCompra, 36),
+    liberado: false, valorLiberacion: null, destinoId: null, mesLiberado: null,
+  });
+  saveAndSync(null);
+}
+
+function delLote(cid, lid) {
+  const c = data.cuentas.find((x) => x.id === cid);
+  if (!c) return;
+  const l = (c.lotes || []).find((x) => x.id === lid);
+  if (!l) return;
+  if (!confirm(`¿Eliminar el paquete de ${fmtEur(l.aportado)} (${(l.mesCompra || "").slice(0, 4)})?`)) return;
+  c.lotes = c.lotes.filter((x) => x.id !== lid);
+  if (liberandoLote === lid) liberandoLote = null;
+  saveAndSync(null);
+}
+
+function confirmarLiberar(cid, lid) {
+  const c = data.cuentas.find((x) => x.id === cid);
+  if (!c) return;
+  const l = (c.lotes || []).find((x) => x.id === lid);
+  if (!l) return;
+  const valor = Number(document.querySelector(`[data-lib-valor="${lid}"]`)?.value);
+  const mes = document.querySelector(`[data-lib-mes="${lid}"]`)?.value;
+  const destinoId = document.querySelector(`[data-lib-destino="${lid}"]`)?.value || null;
+  if (!valor || !mes) { alert("Indica el valor real recibido y el mes de liberación."); return; }
+  l.liberado = true;
+  l.valorLiberacion = valor;
+  l.mesLiberado = mes;
+  l.destinoId = destinoId;
+  liberandoLote = null;
+  const dest = data.cuentas.find((x) => x.id === destinoId);
+  saveAndSync(null);
+  alert(
+    `Paquete liberado ✓\n\n` +
+    `Importante: al registrar el saldo de ${dest ? dest.nombre : "la cuenta destino"} en ${mesLargo(mes)}, ` +
+    `ese saldo ya debe incluir los ${fmtEur(valor)} ingresados.\n\n` +
+    `Así el traspaso cuadra y la ganancia (${fmtEurSign(valor - l.aportado)}) aparece sola en el patrimonio de ese mes.`
+  );
 }
 
 async function guardarGitHub() {
@@ -626,6 +787,18 @@ document.getElementById("upd-mes").addEventListener("change", renderFormulario);
 document.getElementById("btn-guardar-mes").addEventListener("click", guardarMes);
 document.getElementById("btn-add-cuenta").addEventListener("click", addCuenta);
 document.getElementById("lista-cuentas-cfg").addEventListener("click", (e) => {
+  // ── acciones de lotes (acciones bloqueadas) ──
+  const addL = e.target.closest("[data-addlote]");
+  if (addL) return addLote(addL.dataset.addlote);
+  const delL = e.target.closest("[data-dellote]");
+  if (delL) { const [lid, cid] = delL.dataset.dellote.split("|"); return delLote(cid, lid); }
+  const libBtn = e.target.closest("[data-liberar]");
+  if (libBtn) { liberandoLote = libBtn.dataset.liberar.split("|")[0]; return renderAjustes(); }
+  const libCancel = e.target.closest("[data-libcancel]");
+  if (libCancel) { liberandoLote = null; return renderAjustes(); }
+  const libOk = e.target.closest("[data-libok]");
+  if (libOk) { const [lid, cid] = libOk.dataset.libok.split("|"); return confirmarLiberar(cid, lid); }
+  // ── acciones de cuenta ──
   const del = e.target.closest("[data-del]");
   if (del) return delCuenta(del.dataset.del);
   const ren = e.target.closest("[data-rename]");
@@ -644,6 +817,7 @@ document.getElementById("lista-cuentas-cfg").addEventListener("change", (e) => {
   }
 });
 document.getElementById("banner-pendiente").addEventListener("click", () => switchView("actualizar"));
+document.getElementById("banner-liberar").addEventListener("click", () => switchView("ajustes"));
 document.getElementById("seg-cuentas").addEventListener("click", () => {
   chartMode = "cuentas";
   localStorage.setItem("pat:chartmode", chartMode);
