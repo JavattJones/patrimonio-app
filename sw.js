@@ -1,6 +1,6 @@
 /* Service worker: cachea la app para que abra sin conexión.
    Los datos van siempre por red (api.github.com no se cachea). */
-const CACHE = "patrimonio-v6";
+const CACHE = "patrimonio-v7";
 const SHELL = [
   "./",
   "./index.html",
